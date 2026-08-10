@@ -4,10 +4,12 @@ Proyek pemutar musik portabel berbasis **ESP32** yang mengombinasikan antarmuka 
 
 ---
 
+<div style="display: flex; gap: 10px;">
 <img src="images/player.jpeg" width="300" height="400">
 <img src="images/playing.jpeg" width="300" height="400">
 <img src="images/list.jpeg" width="300" height="400">
 <img src="images/circuit.jpeg" width="300" height="400">
+</div>
 
 ---
 ## 📸 Fitur Utama
