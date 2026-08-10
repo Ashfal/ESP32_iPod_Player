@@ -4,6 +4,50 @@ TFT_eSPI tft = TFT_eSPI();
 TFT_eSprite sprUI = TFT_eSprite(&tft);
 float cassetteAngle = 0.0;
 
+void drawProgressBar(int percentage) {
+    int barX = 30;
+    int barY = 170;
+    int barW = 180;
+    int barH = 12;
+
+    sprUI.drawRoundRect(barX, barY, barW, barH, 4, TFT_WHITE);
+    
+    int fillW = map(percentage, 0, 100, 0, barW - 4);
+    fillW = constrain(fillW, 0, barW - 4);
+    if (fillW > 0) {
+        sprUI.fillRoundRect(barX + 2, barY + 2, fillW, barH - 4, 2, COLOR_IPOD_BLUE);
+    }
+}
+
+void showSplashScreen() {
+    uint32_t bootStartTime = millis();
+    uint32_t bootDuration  = 2500; 
+
+    while (millis() - bootStartTime < bootDuration) {
+
+        int progress = map(millis() - bootStartTime, 0, bootDuration, 0, 100);
+        progress = constrain(progress, 0, 100);
+
+        sprUI.fillSprite(COLOR_IPOD_BG);
+
+        sprUI.setTextColor(COLOR_IPOD_BLUE, COLOR_IPOD_BG);
+        sprUI.setTextDatum(MC_DATUM);
+        sprUI.drawString("ESPod Player", 120, 100, 4); 
+
+        sprUI.setTextColor(COLOR_IPOD_DARK, COLOR_IPOD_BG);
+        sprUI.drawString("System Starting...", 120, 135, 2);
+
+        drawProgressBar(progress);
+
+        sprUI.pushSprite(0, 0);
+
+        sprUI.setTextDatum(TL_DATUM);
+
+        vTaskDelay(33 / portTICK_PERIOD_MS);
+    }
+    vTaskDelay(500 / portTICK_PERIOD_MS);
+}
+
 void drawCassetteSpool(int cx, int cy, float angle, int tapeRadius) {
     if (tapeRadius > 10) {
         sprUI.fillCircle(cx, cy, tapeRadius, COLOR_TAPE_BROWN);
@@ -145,6 +189,8 @@ void UITask(void *pvParameters) {
 
     sprUI.setAttribute(PSRAM_ENABLE, true);
     sprUI.createSprite(240, 240);
+
+    showSplashScreen();
 
     uint32_t lastUpdate = 0;
 
