@@ -25,7 +25,7 @@ Proyek pemutar musik portabel berbasis **ESP32** yang mengombinasikan antarmuka 
 - **Format Audio yang Didukung:** `.mp3`, `.wav`, `.flac`.
 - **Fitur Scrubber Mode:** Memudahkan untuk melompat (*fast forward* / *rewind*) durasi lagu sebesar ±5 atau ±10 detik.
 - **Penghemat Daya & Manajemen Baterai:**
-  - *Auto display off* (Backlight mati otomatis setelah 30 detik tanpa interaksi).
+  - *Auto display off* (Backlight dan lcd mati otomatis setelah 30 detik tanpa interaksi).
   - Pembacaan kapasitas baterai Li-Ion/LiPo via ADC dengan kalkulasi pembagi tegangan (*voltage divider*).
 
 ---
@@ -85,7 +85,7 @@ Proyek pemutar musik portabel berbasis **ESP32** yang mengombinasikan antarmuka 
 | **BTN_UP** | `GPIO 32` | Ke Atas / Vol + / Fast Forward |
 | **BTN_DOWN** | `GPIO 21` | Ke Bawah / Vol - / Rewind |
 | **BTN_MENU** | `GPIO 5` | Kembali / Menu Utama / Ke Root Directory |
-| **BTN_PLAY** | `GPIO 33` | Play / Pause / On-Off Display Backlight |
+| **BTN_PLAY** | `GPIO 33` | Play / Pause / DeepSleep |
 | **BTN_CENTER**| `GPIO 0` | Pilih Item / Masuk Scrubber Mode *(Kalau bisa gunakan resistor pullup)* |
 
 ---
@@ -132,7 +132,7 @@ Sistem bekerja dalam **3 Mode Tampilan (Player State)** yang mengubah fungsi mas
 | **BTN_DOWN** | Tekan Singkat | Mengurangi Volume Suara (Minimal Level 0). |
 | | Tahan (*Long Press*) | Melompat ke lagu berikutnya (*Next Track*). |
 | **BTN_PLAY** | Tekan Singkat | Play / Pause Lagu (*Pause & Resume*). |
-| | Tahan (*Long Press*) | Mematikan atau menghidupkan Layar Backlight secara manual. |
+| | Tahan (*Long Press*) | Memasuki mode DeepSleep dan tekan lagi untuk WakeUp |
 | **BTN_CENTER** | Tekan Singkat | Masuk ke **Scrubber Mode** (Mode geser durasi lagu). |
 | **BTN_MENU** | Tekan Singkat | Kembali ke Tampilan Menu / Daftar File (`STATE_MENU_VIEW`). |
 
