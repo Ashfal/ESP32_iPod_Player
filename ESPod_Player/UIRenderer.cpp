@@ -183,7 +183,7 @@ void UITask(void *pvParameters) {
                         }
 
                         String displayName = fileList[i].name;
-                        if (displayName.length() > 20) displayName = displayName.substring(0, 18) + "..";
+                        if (displayName.length() > 28) displayName = displayName.substring(0, 26) + "..";
                         
                         sprUI.drawString(displayName, 10, yOffset + 2, 2);
 
