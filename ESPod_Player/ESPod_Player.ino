@@ -27,7 +27,6 @@ TaskHandle_t AudioTaskHandle = NULL;
 void setup() {
     Serial.begin(115200);
 
-    setDisplayPower(true);
     lastInteractionTime = millis();
 
     if (psramInit()) {

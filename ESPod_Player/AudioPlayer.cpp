@@ -118,7 +118,7 @@ void AudioTask(void *pvParameters) {
     audio.settings.FREQ_LS_HZ = 200;
     audio.settings.FREQ_PEAK_HZ = 1000;
     audio.settings.FREQ_HS_HZ = 8000;
-    audio.setTone(0.0, 0.0, 3.0);
+    audio.setTone(0.0, 0.0, 4.0);
 
     audio.setPinout(I2S_BCLK, I2S_LRCK, I2S_DOUT);
     audio.setVolume(currentVolume);

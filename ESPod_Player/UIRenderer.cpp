@@ -105,8 +105,22 @@ void drawIpodHeader(String title) {
 }
 
 void setDisplayPower(bool turnOn) {
-    isBacklightOn = turnOn;
-    digitalWrite(TFT_BL, turnOn ? HIGH : LOW);
+
+    if (xSemaphoreTake(dataMutex, portMAX_DELAY) == pdTRUE) {
+
+        if (turnOn) {
+            tft.writecommand(ST7789_SLPOUT);
+            tft.writecommand(ST7789_DISPON);
+            vTaskDelay(120 / portTICK_PERIOD_MS);
+        } else {
+            tft.writecommand(ST7789_DISPOFF);
+            tft.writecommand(ST7789_SLPIN);
+            vTaskDelay(120 / portTICK_PERIOD_MS);
+        }
+        digitalWrite(TFT_BL, turnOn ? HIGH : LOW);
+        isBacklightOn = turnOn;
+        xSemaphoreGive(dataMutex);
+    }
 }
 
 uint8_t readBatteryPercentage() {
@@ -150,7 +164,7 @@ void UITask(void *pvParameters) {
             sprUI.fillSprite(COLOR_IPOD_BG);
 
             if (currentState == STATE_MENU_VIEW) {
-                drawIpodHeader(currentPath == "/" ? "iPod" : "Music");
+                drawIpodHeader(currentPath == "/" ? "ESPod" : currentPath);
 
                 if (xSemaphoreTake(dataMutex, (TickType_t)5) == pdTRUE) {
                     int yOffset = 32;

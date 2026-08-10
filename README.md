@@ -1,4 +1,4 @@
-# 🎵 ESP32 iPod & Cassette Audio Player
+# 🎵 ESPod Audio Player
 
 Proyek pemutar musik portabel berbasis **ESP32** yang mengombinasikan antarmuka UI bergaya **iPod Classic** dan **animasi kaset pita retro** yang berputar secara dinamis. Proyek ini memanfaatkan **FreeRTOS (multithreading)** pada ESP32 untuk memisahkan pemrosesan decoding audio I2S, rendering grafik tampilan, dan penanganan tombol navigasi.
 
