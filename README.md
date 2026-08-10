@@ -4,6 +4,12 @@ Proyek pemutar musik portabel berbasis **ESP32** yang mengombinasikan antarmuka 
 
 ---
 
+<img src="images/player.jpeg" width="300" height="400">
+<img src="images/playing.jpeg" width="300" height="400">
+<img src="images/list.jpeg" width="300" height="400">
+<img src="images/circuit.jpeg" width="300" height="400">
+
+---
 ## 📸 Fitur Utama
 
 - **Antarmuka UI iPod & Animasi Kaset Retro:**
@@ -56,7 +62,20 @@ Proyek pemutar musik portabel berbasis **ESP32** yang mengombinasikan antarmuka 
 
 ---
 
-### 3. Tombol Navigasi (Push Buttons)
+### 3. Modul Display ST7789
+*(File Konfigurasi Library TFT_eSPI = "User_Setup.h").*
+
+| Nama Display | Pin ESP32 | Keterangan |
+| :--- | :--- | :--- |
+| **TFT_MOSI** | `GPIO 23` | SPI Data Output |
+| **TFT_SCLK** | `GPIO 13` | SPI Clock |
+| **TFT_DC** | `GPIO 12` | Data Control |
+| **TFT_RST** | `GPIO 14` | Reset Pin |
+| **TFT_BL** | `GPIO 14` | Backlight Pin |
+
+---
+
+### 4. Tombol Navigasi (Push Buttons)
 *(Semua tombol dikonfigurasi menggunakan internal `INPUT_PULLUP`. Hubungkan salah satu kaki tombol ke Pin ESP32 dan kaki lainnya ke **GND**).*
 
 | Nama Tombol | Pin ESP32 | Fungsi Ringkas |
@@ -65,7 +84,7 @@ Proyek pemutar musik portabel berbasis **ESP32** yang mengombinasikan antarmuka 
 | **BTN_DOWN** | `GPIO 21` | Ke Bawah / Vol - / Rewind |
 | **BTN_MENU** | `GPIO 5` | Kembali / Menu Utama / Ke Root Directory |
 | **BTN_PLAY** | `GPIO 33` | Play / Pause / On-Off Display Backlight |
-| **BTN_CENTER**| `GPIO 0` | Pilih Item / Masuk Scrubber Mode |
+| **BTN_CENTER**| `GPIO 0` | Pilih Item / Masuk Scrubber Mode *(Kalau bisa gunakan resistor pullup)* |
 
 ---
 
