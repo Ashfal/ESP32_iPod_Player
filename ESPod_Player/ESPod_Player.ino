@@ -27,6 +27,13 @@ TaskHandle_t AudioTaskHandle = NULL;
 void setup() {
     Serial.begin(115200);
 
+    esp_sleep_wakeup_cause_t wakeup_reason = esp_sleep_get_wakeup_cause();
+    if (wakeup_reason == ESP_SLEEP_WAKEUP_EXT0) {
+        while (digitalRead(BTN_PLAY) == LOW) {
+            delay(10);
+        }
+    }
+
     lastInteractionTime = millis();
 
     if (psramInit()) {

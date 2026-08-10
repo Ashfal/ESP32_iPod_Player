@@ -187,6 +187,10 @@ void UITask(void *pvParameters) {
     tft.setRotation(2);
     tft.fillScreen(COLOR_IPOD_BG);
 
+    gpio_hold_dis(GPIO_NUM_27);
+    gpio_deep_sleep_hold_dis();
+    setDisplayPower(true);
+
     sprUI.setAttribute(PSRAM_ENABLE, true);
     sprUI.createSprite(240, 240);
 

@@ -8,6 +8,19 @@ Button buttons[] = {
     {BTN_CENTER, false, 0, false}
 };
 
+void enterDeepSleep() {
+    Serial.println("Entering Deep Sleep...");
+
+    audio.stopSong();
+    setDisplayPower(false);
+
+    esp_sleep_enable_ext0_wakeup((gpio_num_t)BTN_PLAY, 0); // 0 = LOW
+    delay(3000);
+    gpio_hold_en(GPIO_NUM_27);
+    gpio_deep_sleep_hold_en();
+    esp_deep_sleep_start();
+}
+
 void InputTask(void *pvParameters) {
     for (int i = 0; i < 5; i++) pinMode(buttons[i].pin, INPUT_PULLUP);
 
@@ -66,19 +79,19 @@ void InputTask(void *pvParameters) {
                             playNextTrack();
                             buttons[i].longPressHandled = true;
                         } else if (buttons[i].pin == BTN_PLAY) {
-                            setDisplayPower(!isBacklightOn);
                             buttons[i].longPressHandled = true;
+                            enterDeepSleep();
                         }
                     }
                     else if (currentState == STATE_SCRUBBER_MODE) {
-                        if (buttons[i].pin == BTN_UP) {
-                            uint32_t newPos = constrain(audioCurrentTime + 10, 0, audioTotalTime);
+                        if (buttons[i].pin == BTN_UP && (now - lastFastScroll > FAST_SCROLL_INTERVAL)) {
+                            uint32_t newPos = constrain(audioCurrentTime + 5, 0, audioTotalTime);
                             audio.setAudioPlayTime(newPos);
-                            buttons[i].longPressHandled = true;
-                        } else if (buttons[i].pin == BTN_DOWN) {
-                            uint32_t newPos = (audioCurrentTime > 1) ? (audioCurrentTime - 10) : 0;
+                            lastFastScroll = now;
+                        } else if (buttons[i].pin == BTN_DOWN && (now - lastFastScroll > FAST_SCROLL_INTERVAL)) {
+                            uint32_t newPos = (audioCurrentTime > 1) ? (audioCurrentTime - 5) : 0;
                             audio.setAudioPlayTime(newPos);
-                            buttons[i].longPressHandled = true;
+                            lastFastScroll = now;
                         }
                     }
                 }
