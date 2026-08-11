@@ -160,7 +160,7 @@ Sistem bekerja dalam **3 Mode Tampilan (Player State)** yang mengubah fungsi mas
 | | Tahan (*Long Press*) | Next Song. |
 | **BTN_DOWN** | Tekan Singkat | Volume Down. |
 | | Tahan (*Long Press*) | Prev Song. |
-| **BTN_CENTER** | Tekan Singkat | Play / Pause. |
+| **BTN_PLAY** | Tekan Singkat | Play / Pause. |
 | **BTN_Menu** | Tekan Singkat | Keluar dari Mode Bluetooth. |
 
 ---
