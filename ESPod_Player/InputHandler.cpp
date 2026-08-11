@@ -1,4 +1,5 @@
 #include "InputHandler.h"
+#include "BluetoothManager.h"
 
 Button buttons[] = {
     {BTN_UP, false, 0, false},
@@ -94,6 +95,17 @@ void InputTask(void *pvParameters) {
                             lastFastScroll = now;
                         }
                     }
+
+                    else if (currentState == STATE_BLUETOOTH_MODE) {
+                        if (buttons[i].pin == BTN_UP) {
+                            a2dp_sink.next();
+                            buttons[i].longPressHandled = true;
+                        }
+                        else if (buttons[i].pin == BTN_DOWN) {
+                            a2dp_sink.previous();
+                            buttons[i].longPressHandled = true;
+                        }
+                    }
                 }
             }
             else if (pinState == HIGH && buttons[i].isPressed) {
@@ -108,7 +120,12 @@ void InputTask(void *pvParameters) {
                         } else if (buttons[i].pin == BTN_DOWN) {
                             if (!fileList.empty()) selectedIndex = (selectedIndex + 1) % fileList.size();
                         } else if (buttons[i].pin == BTN_CENTER) {
-                            playSelectedItem();
+                            if (!fileList.empty() && fileList[selectedIndex].name == "[ Bluetooth Mode ]") {
+                                currentState = STATE_BLUETOOTH_MODE;
+                                startBluetoothMode();
+                            } else {
+                                playSelectedItem();
+                            }
                         } else if (buttons[i].pin == BTN_MENU) {
                             if (currentPath != "/") {
                                 int lastSlash = currentPath.lastIndexOf('/');
@@ -144,6 +161,21 @@ void InputTask(void *pvParameters) {
                             audio.setAudioPlayTime(newPos);
                         } else if (buttons[i].pin == BTN_CENTER) {
                             currentState = STATE_NOW_PLAYING;
+                        }
+                    }
+
+                    else if (currentState == STATE_BLUETOOTH_MODE) {
+                        if (buttons[i].pin == BTN_MENU) {
+                            stopBluetoothMode();
+                        } 
+                        else if (buttons[i].pin == BTN_PLAY) {
+                            handleBluetoothPlayback();
+                        }
+                        else if (buttons[i].pin == BTN_UP) {
+                            increaseBluetoothVolume();
+                        }
+                        else if (buttons[i].pin == BTN_DOWN) {;
+                            decreaseBluetoothVolume();
                         }
                     }
                 }

@@ -1,3 +1,4 @@
+// Config.h
 #ifndef CONFIG_H
 #define CONFIG_H
 
@@ -23,8 +24,8 @@
 #define BTN_CENTER      0  
 
 #define PIN_BATTERY     35
-#define R1_VALUE        10.0 // kOhm
-#define R2_VALUE        10.0 // kOhm
+#define R1_VALUE        10.0
+#define R2_VALUE        10.0
 
 // ==========================================
 // COLOR DEFINITIONS
@@ -47,7 +48,8 @@
 enum PlayerState { 
     STATE_MENU_VIEW, 
     STATE_NOW_PLAYING, 
-    STATE_SCRUBBER_MODE 
+    STATE_SCRUBBER_MODE,
+    STATE_BLUETOOTH_MODE 
 };
 
 struct FileItem {
@@ -70,10 +72,20 @@ extern volatile uint8_t currentVolume;
 extern char currentTrackName[64];
 extern volatile bool nextTrackRequested;
 
+extern uint32_t btPlayPosMs;
+extern uint32_t btTrackLenMs;
+extern bool isBtPlaying;       
+extern char btTrackTitle[64];
+extern char btTrackArtist[64];
+
 extern volatile uint8_t batteryPercent;
 extern volatile bool isBacklightOn;
 extern volatile unsigned long lastInteractionTime;
 extern const unsigned long AUTO_OFF_TIMEOUT;
+
+
+extern volatile bool isBtConnected;
+extern char btDeviceName[32];
 
 extern SemaphoreHandle_t dataMutex;
 

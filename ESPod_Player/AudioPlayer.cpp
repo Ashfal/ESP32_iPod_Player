@@ -8,6 +8,11 @@ void readDirectory(String path) {
         fileList.clear();
         selectedIndex = 0;
 
+        // Jika berada di Root Directory, tambahkan pilihan menu Bluetooth
+        if (path == "/") {
+            fileList.push_back({"[ Bluetooth Mode ]", false});
+        }
+
         File root = SD.open(path);
         if (root && root.isDirectory()) {
             File file = root.openNextFile();
@@ -118,7 +123,7 @@ void AudioTask(void *pvParameters) {
     audio.settings.FREQ_LS_HZ = 200;
     audio.settings.FREQ_PEAK_HZ = 1000;
     audio.settings.FREQ_HS_HZ = 8000;
-    audio.setTone(0.0, 0.0, 4.0);
+    audio.setTone(0.0, 0.0, 3.0);
 
     audio.setPinout(I2S_BCLK, I2S_LRCK, I2S_DOUT);
     audio.setVolume(currentVolume);
@@ -126,19 +131,22 @@ void AudioTask(void *pvParameters) {
     readDirectory(currentPath);
 
     for (;;) {
-        audio.loop();
+        // HANYA JALANKAN SD CARD AUDIO JIKA TIDAK DALAM MODE BLUETOOTH
+        if (currentState != STATE_BLUETOOTH_MODE) {
+            audio.loop();
 
-        if (xSemaphoreTake(dataMutex, (TickType_t)2) == pdTRUE) {
-            audioCurrentTime = audio.getAudioCurrentTime();
-            audioTotalTime   = audio.getAudioFileDuration();
-            xSemaphoreGive(dataMutex);
-        }
+            if (xSemaphoreTake(dataMutex, (TickType_t)2) == pdTRUE) {
+                audioCurrentTime = audio.getAudioCurrentTime();
+                audioTotalTime   = audio.getAudioFileDuration();
+                xSemaphoreGive(dataMutex);
+            }
 
-        if (nextTrackRequested) {
-            nextTrackRequested = false;
-            vTaskDelay(100 / portTICK_PERIOD_MS); 
-            Serial.println("[AudioTask] Playing next track safely...");
-            playNextTrack();
+            if (nextTrackRequested) {
+                nextTrackRequested = false;
+                vTaskDelay(100 / portTICK_PERIOD_MS); 
+                Serial.println("[AudioTask] Playing next track safely...");
+                playNextTrack();
+            }
         }
 
         vTaskDelay(1 / portTICK_PERIOD_MS);

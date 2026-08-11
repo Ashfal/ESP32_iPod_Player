@@ -116,6 +116,7 @@ void drawCassetteAnimation(int x, int y, int w, int h) {
     sprUI.drawRect(x + 35, y + h - 10, w - 70, 10, TFT_BLACK);
 }
 
+
 void drawIpodHeader(String title) {
     sprUI.fillRect(0, 0, 240, 28, COLOR_IPOD_BLUE);
     sprUI.drawFastHLine(0, 27, 240, TFT_NAVY);
@@ -280,6 +281,95 @@ void UITask(void *pvParameters) {
                 int volWidth = map(currentVolume, 0, 21, 0, 160);
                 sprUI.fillRect(45, 209, 160, 6, 0xE71C);
                 sprUI.fillRect(45, 209, volWidth, 6, COLOR_IPOD_SEL);
+            }
+            
+           else if (currentState == STATE_BLUETOOTH_MODE) {
+                drawIpodHeader("ESPod BT");
+
+                static float btCassetteAngle = 0.0;
+                if (isBtPlaying) {
+                    btCassetteAngle += 5.0;
+                    if (btCassetteAngle >= 360.0) btCassetteAngle -= 360.0;
+                }
+
+                int cassX = 20;
+                int cassY = 60;
+                int cassW = 200;
+                int cassH = 110;
+
+                sprUI.fillRoundRect(cassX, cassY, cassW, cassH, 6, COLOR_CASSETTE_BODY);
+                sprUI.drawRoundRect(cassX, cassY, cassW, cassH, 6, COLOR_IPOD_DARK);
+
+                int labelX = cassX + 10;
+                int labelY = cassY + 8;
+                int labelW = cassW - 20;
+                int labelH = 34;
+
+                sprUI.fillRect(labelX, labelY, labelW, labelH, COLOR_CASSETTE_LABEL);
+                sprUI.drawRect(labelX, labelY, labelW, labelH, COLOR_IPOD_DARK);
+
+                sprUI.setTextDatum(MC_DATUM);
+
+                if (isBtConnected) {
+
+                    String titleStr = String(btTrackTitle);
+                    if (titleStr.length() > 18) {
+                        titleStr = titleStr.substring(0, 16) + "..";
+                    }
+
+                    String artistStr = String(btTrackArtist);
+                    if (artistStr.length() > 22) {
+                        artistStr = artistStr.substring(0, 20) + "..";
+                    }
+
+                    sprUI.setTextColor(COLOR_IPOD_DARK, COLOR_CASSETTE_LABEL);
+                    sprUI.drawString(titleStr, 120, labelY + 10, 2);
+
+                    sprUI.setTextColor(COLOR_IPOD_DARK, COLOR_CASSETTE_LABEL);
+                    sprUI.drawString(artistStr, 120, labelY + 24, 1);
+                } else {
+
+                    sprUI.setTextColor(COLOR_IPOD_DARK, COLOR_CASSETTE_LABEL);
+                    sprUI.drawString("PAIRING...", 120, labelY + 12, 2);
+                    sprUI.setTextColor(COLOR_IPOD_DARK, COLOR_CASSETTE_LABEL);
+                    sprUI.drawString("ESPod_BT", 120, labelY + 25, 1);
+                }
+
+                int winX = cassX + 25;
+                int winY = cassY + 48;
+                int winW = cassW - 50;
+                int winH = 48;
+
+                sprUI.fillRect(winX, winY, winW, winH, COLOR_CASSETTE_WIN);
+                sprUI.drawRect(winX, winY, winW, winH, COLOR_IPOD_DARK);
+
+                int leftTapeRadius  = 16;
+                int rightTapeRadius = 16;
+
+                int leftSpoolX = winX + 32;
+                int rightSpoolX = winX + winW - 32;
+                int spoolY = winY + (winH / 2);
+
+                drawCassetteSpool(leftSpoolX, spoolY, btCassetteAngle, leftTapeRadius);
+                drawCassetteSpool(rightSpoolX, spoolY, btCassetteAngle, rightTapeRadius);
+
+                uint32_t curSec = btPlayPosMs / 1000;
+                char timeStr[32];
+                
+                snprintf(timeStr, sizeof(timeStr), "%02d:%02d", curSec / 60, curSec % 60);
+
+                sprUI.setTextColor(TFT_WHITE,COLOR_CASSETTE_WIN );
+                sprUI.drawString(timeStr, 120, spoolY, 2);
+
+                sprUI.drawFastHLine(12, 198, 216, 0xE71C);
+                
+                int volWidth = map(currentVolume, 0, 21, 0, 160);
+                sprUI.fillRect(45, 209, 160, 6, 0xE71C);
+                sprUI.fillRect(45, 209, volWidth, 6, COLOR_IPOD_SEL);
+                
+                sprUI.setTextDatum(TL_DATUM);
+                sprUI.setTextColor(COLOR_IPOD_DARK, COLOR_IPOD_BG);
+                sprUI.drawString("Vol:", 12, 207, 1);
             }
 
             sprUI.pushSprite(0, 0);

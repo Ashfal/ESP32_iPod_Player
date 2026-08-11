@@ -1,6 +1,6 @@
 # 🎵 ESPod Audio Player
 
-Proyek pemutar musik portabel berbasis **ESP32** yang mengombinasikan antarmuka UI bergaya **iPod Classic** dan **animasi kaset pita retro** yang berputar secara dinamis. Proyek ini memanfaatkan **FreeRTOS (multithreading)** pada ESP32 untuk memisahkan pemrosesan decoding audio I2S, rendering grafik tampilan, dan penanganan tombol navigasi.
+Proyek pemutar musik dan bluetooth receiver portabel berbasis **ESP32** yang mengombinasikan antarmuka UI bergaya **iPod Classic** dan **animasi kaset pita retro** yang berputar secara dinamis. Proyek ini memanfaatkan **FreeRTOS (multithreading)** pada ESP32 untuk memisahkan pemrosesan decoding audio I2S, rendering grafik tampilan, dan penanganan tombol navigasi.
 
 ---
 
@@ -8,6 +8,7 @@ Proyek pemutar musik portabel berbasis **ESP32** yang mengombinasikan antarmuka 
 <img src="images/player.jpeg" width="300" height="400">
 <img src="images/playing.jpeg" width="300" height="400">
 <img src="images/list.jpeg" width="300" height="400">
+<img src="images/bt_mode.jpeg" width="300" height="400">
 <img src="images/circuit.jpeg" width="300" height="400">
 </div>
 
@@ -23,6 +24,7 @@ Proyek pemutar musik portabel berbasis **ESP32** yang mengombinasikan antarmuka 
   - `UITask` (Core 0): Merender tampilan visual pada Layar TFT tanpa *flicker* menggunakan *PSRAM Sprite*.
   - `InputTask` (Core 0): Menangani deteksi tombol, *debouncing*, *long press*, dan *fast scroll*.
 - **Format Audio yang Didukung:** `.mp3`, `.wav`, `.flac`.
+- **Mendukung Mode Bluetoth Reveiver:** `💡 BARU!!!`.
 - **Fitur Scrubber Mode:** Memudahkan untuk melompat (*fast forward* / *rewind*) durasi lagu sebesar ±5 atau ±10 detik.
 - **Penghemat Daya & Manajemen Baterai:**
   - *Auto display off* (Backlight dan lcd mati otomatis setelah 30 detik tanpa interaksi).
@@ -150,6 +152,19 @@ Sistem bekerja dalam **3 Mode Tampilan (Player State)** yang mengubah fungsi mas
 
 ---
 
+### 3. Mode Bluetooth (`STATE_BLUETOOTH_MODE`)
+
+| Tombol | Aksi / Jenis Tekanan | Fungsi |
+| :--- | :--- | :--- |
+| **BTN_UP** | Tekan Singkat | Volume UP. |
+| | Tahan (*Long Press*) | Next Song. |
+| **BTN_DOWN** | Tekan Singkat | Volume Down. |
+| | Tahan (*Long Press*) | Prev Song. |
+| **BTN_CENTER** | Tekan Singkat | Play / Pause. |
+| **BTN_Menu** | Tekan Singkat | Keluar dari Mode Bluetooth. |
+
+---
+
 ### 💡 Catatan Fitur Otomatis
 - **Wake-Up Display:** Apabila layar mati otomatis akibat *Timeout 30 detik*, menekan **tombol apapun pertama kali** hanya akan menyalakan kembali backlight layar tanpa mengeksekusi aksi perintah tombol tersebut.
 
@@ -175,14 +190,17 @@ Program ini membagi beban kerja ke dalam 3 Task FreeRTOS:
 
 ```text
 .
-├── Config.h          # Konfigurasi Pinout, Kode Warna TFT, Structure, & Extern Globals
-├── AudioPlayer.h     # Header fungsi dekoder audio I2S dan pembacaan folder SD Card
-├── AudioPlayer.cpp   # Implementasi FreeRTOS Task Audio & Callback I2S
-├── UIRenderer.h      # Header UI Renderer & Tampilan Layar
-├── UIRenderer.cpp    # Implementasi pembacaan ADC Baterai, Sprites, & Drawing UI
-├── InputHandler.h    # Header penanganan input tombol
-├── InputHandler.cpp  # Logic pembacaan tombol (Short Press, Long Press, Scrubber Mode)
-└── main.cpp / .ino   # Setup awal FreeRTOS tasks & Inisialisasi Mutex Semaphore
+├── Config.h              # Konfigurasi Pinout, Kode Warna TFT, Structure, & Extern Globals
+├── AudioPlayer.h         # Header fungsi dekoder audio I2S dan pembacaan folder SD Card
+├── AudioPlayer.cpp       # Implementasi FreeRTOS Task Audio & Callback I2S
+├── BluetoothManager.h    # Header Implementasi Kontrol Bluetooth
+├── BluetoothManager.cpp  # Implementasi Kontrol Bluetooth
+├── AudioPlayer.cpp       # Implementasi FreeRTOS Task Audio & Callback I2S
+├── UIRenderer.h          # Header UI Renderer & Tampilan Layar
+├── UIRenderer.cpp        # Implementasi pembacaan ADC Baterai, Sprites, & Drawing UI
+├── InputHandler.h        # Header penanganan input tombol
+├── InputHandler.cpp      # Logic pembacaan tombol (Short Press, Long Press, Scrubber Mode)
+└── main.cpp / .ino       # Setup awal FreeRTOS tasks & Inisialisasi Mutex Semaphore
 ```
 
 ---
@@ -192,3 +210,4 @@ Program ini membagi beban kerja ke dalam 3 Task FreeRTOS:
 Sebelum mengompilasi kode pada Arduino IDE atau PlatformIO, pastikan library berikut telah terinstal:
 1. **[TFT_eSPI](https://github.com/Bodmer/TFT_eSPI)** — Sesuaikan konfigurasi driver layar (misal: ST7789) di file `User_Setup.h` milik library.
 2. **[ESP32-audioI2S](https://github.com/schreibfaul1/ESP32-audioI2S)** — Library decoder I2S audio stream.
+3. **[ESP32-A2DP](https://github.com/pschatzmann/ESP32-A2DP)** — (Library ringan untuk menerima audio A2DP via I2S).

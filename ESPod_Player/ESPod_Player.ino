@@ -9,6 +9,14 @@ std::vector<FileItem> fileList;
 int selectedIndex = 0;
 String currentPath = "/";
 
+volatile bool isBtConnected = false;
+uint32_t btPlayPosMs = 0;
+uint32_t btTrackLenMs = 0;
+bool isBtPlaying = false;
+char btDeviceName[32] = "Waiting Connection...";
+char btTrackTitle[64]  = "Unknown Title";
+char btTrackArtist[64] = "Unknown Artist";
+
 volatile bool isPlaying = false;
 volatile uint32_t audioCurrentTime = 0;
 volatile uint32_t audioTotalTime   = 0;
