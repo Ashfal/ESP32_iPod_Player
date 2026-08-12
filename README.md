@@ -72,10 +72,10 @@ Proyek pemutar musik dan bluetooth receiver portabel berbasis **ESP32** yang men
 | Nama Display | Pin ESP32 | Keterangan |
 | :--- | :--- | :--- |
 | **TFT_MOSI** | `GPIO 23` | SPI Data Output |
-| **TFT_SCLK** | `GPIO 13` | SPI Clock |
-| **TFT_DC** | `GPIO 12` | Data Control |
-| **TFT_RST** | `GPIO 14` | Reset Pin |
-| **TFT_BL** | `GPIO 14` | Backlight Pin |
+| **TFT_SCLK** | `GPIO 18` | SPI Clock |
+| **TFT_DC** | `GPIO 2` | Data Control |
+| **TFT_RST** | `GPIO 4` | Reset Pin |
+| **TFT_BL** | `GPIO 27` | Backlight Pin |
 
 ---
 
