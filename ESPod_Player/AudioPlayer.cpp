@@ -1,4 +1,5 @@
 #include "AudioPlayer.h"
+#include "BluetoothManager.h"
 
 Audio audio;
 SPIClass sdSPI(HSPI);
@@ -8,7 +9,6 @@ void readDirectory(String path) {
         fileList.clear();
         selectedIndex = 0;
 
-        // Jika berada di Root Directory, tambahkan pilihan menu Bluetooth
         if (path == "/") {
             fileList.push_back({"[ Bluetooth Mode ]", false});
         }
@@ -18,7 +18,7 @@ void readDirectory(String path) {
             File file = root.openNextFile();
             while (file) {
                 String fname = String(file.name());
-                if (file.isDirectory() || fname.endsWith(".mp3") || fname.endsWith(".wav") || fname.endsWith(".flac")) {
+                if (file.isDirectory() || fname.endsWith(".mp3") || fname.endsWith(".wav") || fname.endsWith(".opus") || fname.endsWith(".aac") || fname.endsWith(".flac")) {
                     fileList.push_back({fname, file.isDirectory()});
                 }
                 file.close();
@@ -45,6 +45,12 @@ void playSelectedItem() {
         fullPath += selected.name;
 
         snprintf(currentTrackName, sizeof(currentTrackName), "%s", selected.name.c_str());
+
+        if (xSemaphoreTake(dataMutex, portMAX_DELAY) == pdTRUE) {
+            snprintf(localTrackTitle, sizeof(localTrackTitle), "%s", selected.name.c_str());
+            snprintf(localTrackArtist, sizeof(localTrackArtist), "Unknown Artist");
+            xSemaphoreGive(dataMutex);
+        }
 
         Serial.print("Opening file: ");
         Serial.println(fullPath);
@@ -100,6 +106,20 @@ void my_audio_info(Audio::msg_t m) {
             isPlaying = false;
             nextTrackRequested = true;
             break;
+
+        case Audio::evt_id3data: {
+            String meta = String(m.msg);
+            if (xSemaphoreTake(dataMutex, (TickType_t)5) == pdTRUE) {
+                if (meta.startsWith("Title:")) {
+                    snprintf(localTrackTitle, sizeof(localTrackTitle), "%s", meta.substring(7).c_str());
+                } else if (meta.startsWith("Artist:")) {
+                    snprintf(localTrackArtist, sizeof(localTrackArtist), "%s", meta.substring(8).c_str());
+                }
+                xSemaphoreGive(dataMutex);
+            }
+            break;
+        }
+
         default:
             break;
     }
@@ -109,14 +129,24 @@ void AudioTask(void *pvParameters) {
     sdSPI.begin(SD_SCK, SD_MISO, SD_MOSI, SD_CS);
 
     if (!SD.begin(SD_CS, sdSPI, 20000000)) {
-        Serial.println("SD Card Error!");
-        vTaskDelete(NULL);
+        Serial.println("[AudioTask] Warning: SD Card tidak terdeteksi atau error!");
+        
+        isSdAvailable = false;
+
+    } else {
+        Serial.println("[AudioTask] SD Card berhasil diinisialisasi.");
+        if (xSemaphoreTake(dataMutex, portMAX_DELAY) == pdTRUE) {
+            isSdAvailable = true;
+            xSemaphoreGive(dataMutex);
+        }
+        readDirectory(currentPath);
     }
+
     Audio::audio_info_callback = my_audio_info;
 
-    audio.settings.DMA_DESC_NUM = 16;
-    audio.settings.DMA_FRAME_NUM = 512;
-    audio.settings.VOL_FADING_SPEED = 20.0;
+    // audio.settings.DMA_DESC_NUM = 16;
+    // audio.settings.DMA_FRAME_NUM = 512;
+    // audio.settings.VOL_FADING_SPEED = 20.0;
 
     audio.settings.IIR_FILTER = true;
     audio.settings.QUALITY_SLOPE = 0.707;
@@ -127,12 +157,10 @@ void AudioTask(void *pvParameters) {
 
     audio.setPinout(I2S_BCLK, I2S_LRCK, I2S_DOUT);
     audio.setVolume(currentVolume);
-    
-    readDirectory(currentPath);
 
     for (;;) {
-        // HANYA JALANKAN SD CARD AUDIO JIKA TIDAK DALAM MODE BLUETOOTH
-        if (currentState != STATE_BLUETOOTH_MODE) {
+
+        if (isSdAvailable && currentState != STATE_BLUETOOTH_MODE) {
             audio.loop();
 
             if (xSemaphoreTake(dataMutex, (TickType_t)2) == pdTRUE) {

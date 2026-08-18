@@ -60,6 +60,7 @@ struct FileItem {
 // ==========================================
 // EXTERN GLOBALS
 // ==========================================
+extern volatile bool isSdAvailable;
 extern volatile PlayerState currentState;
 extern std::vector<FileItem> fileList;
 extern int selectedIndex;
@@ -77,6 +78,8 @@ extern uint32_t btTrackLenMs;
 extern bool isBtPlaying;       
 extern char btTrackTitle[64];
 extern char btTrackArtist[64];
+extern char localTrackTitle[64];
+extern char localTrackArtist[64];
 
 extern volatile uint8_t batteryPercent;
 extern volatile bool isBacklightOn;

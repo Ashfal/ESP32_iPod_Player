@@ -4,6 +4,7 @@
 #include "InputHandler.h"
 
 // Definisi variabel global
+volatile bool isSdAvailable = false;
 volatile PlayerState currentState = STATE_MENU_VIEW;
 std::vector<FileItem> fileList;
 int selectedIndex = 0;
@@ -16,6 +17,9 @@ bool isBtPlaying = false;
 char btDeviceName[32] = "Waiting Connection...";
 char btTrackTitle[64]  = "Unknown Title";
 char btTrackArtist[64] = "Unknown Artist";
+char localTrackTitle[64]  = "Unknown Title";
+char localTrackArtist[64] = "Unknown Artist";
+
 
 volatile bool isPlaying = false;
 volatile uint32_t audioCurrentTime = 0;
@@ -50,9 +54,10 @@ void setup() {
 
     dataMutex = xSemaphoreCreateMutex();
 
-    xTaskCreatePinnedToCore(AudioTask, "AudioTask", 8192, NULL, 2, &AudioTaskHandle, 1);
+    xTaskCreatePinnedToCore(AudioTask, "AudioTask", 8192, NULL, 3, &AudioTaskHandle, 1);
+    xTaskCreatePinnedToCore(InputTask, "InputTask", 4096, NULL, 2, NULL, 0);
     xTaskCreatePinnedToCore(UITask,    "UITask",    4096, NULL, 1, NULL, 0);
-    xTaskCreatePinnedToCore(InputTask, "InputTask", 4096, NULL, 1, NULL, 0);
+    
 }
 
 void loop() {

@@ -69,6 +69,9 @@ void InputTask(void *pvParameters) {
                             currentPath = "/";
                             readDirectory(currentPath);
                             buttons[i].longPressHandled = true;
+                        }else if (buttons[i].pin == BTN_PLAY) {
+                            buttons[i].longPressHandled = true;
+                            enterDeepSleep();
                         }
                     } 
                     else if (currentState == STATE_NOW_PLAYING) {
@@ -82,6 +85,9 @@ void InputTask(void *pvParameters) {
                         } else if (buttons[i].pin == BTN_PLAY) {
                             buttons[i].longPressHandled = true;
                             enterDeepSleep();
+                        }else if (buttons[i].pin == BTN_MENU) {
+                            ESP.restart();
+                            buttons[i].longPressHandled = true;
                         }
                     }
                     else if (currentState == STATE_SCRUBBER_MODE) {
@@ -104,7 +110,13 @@ void InputTask(void *pvParameters) {
                         else if (buttons[i].pin == BTN_DOWN) {
                             a2dp_sink.previous();
                             buttons[i].longPressHandled = true;
-                        }
+                        }else if (buttons[i].pin == BTN_MENU) {
+                            ESP.restart();
+                            buttons[i].longPressHandled = true;
+                        }else if (buttons[i].pin == BTN_PLAY) {
+                            buttons[i].longPressHandled = true;
+                            enterDeepSleep();
+                        } 
                     }
                 }
             }
@@ -124,7 +136,12 @@ void InputTask(void *pvParameters) {
                                 currentState = STATE_BLUETOOTH_MODE;
                                 startBluetoothMode();
                             } else {
-                                playSelectedItem();
+                                if (isSdAvailable) {
+                                    playSelectedItem();
+                                }else{
+                                currentState = STATE_BLUETOOTH_MODE;
+                                startBluetoothMode();
+                                }
                             }
                         } else if (buttons[i].pin == BTN_MENU) {
                             if (currentPath != "/") {
@@ -166,8 +183,8 @@ void InputTask(void *pvParameters) {
 
                     else if (currentState == STATE_BLUETOOTH_MODE) {
                         if (buttons[i].pin == BTN_MENU) {
-                            stopBluetoothMode();
-                        } 
+                            stopBluetoothMode(); 
+                        }
                         else if (buttons[i].pin == BTN_PLAY) {
                             handleBluetoothPlayback();
                         }
