@@ -4,9 +4,7 @@
 #include <TFT_eSPI.h>
 #include "Config.h"
 
-void drawCassetteSpool(int cx, int cy, float angle, int tapeRadius);
-void drawCassetteAnimation(int x, int y, int w, int h);
-void drawIpodHeader(String title);
+void drawHeader(String title);
 void setDisplayPower(bool turnOn);
 void showSplashScreen();
 void drawProgressBar(int percentage);

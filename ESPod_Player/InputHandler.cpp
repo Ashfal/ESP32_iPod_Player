@@ -86,7 +86,7 @@ void InputTask(void *pvParameters) {
                             buttons[i].longPressHandled = true;
                             enterDeepSleep();
                         }else if (buttons[i].pin == BTN_MENU) {
-                            ESP.restart();
+                            ESP.restart(); //force restart
                             buttons[i].longPressHandled = true;
                         }
                     }
@@ -111,7 +111,7 @@ void InputTask(void *pvParameters) {
                             a2dp_sink.previous();
                             buttons[i].longPressHandled = true;
                         }else if (buttons[i].pin == BTN_MENU) {
-                            ESP.restart();
+                            ESP.restart(); //force restart
                             buttons[i].longPressHandled = true;
                         }else if (buttons[i].pin == BTN_PLAY) {
                             buttons[i].longPressHandled = true;
@@ -183,7 +183,7 @@ void InputTask(void *pvParameters) {
 
                     else if (currentState == STATE_BLUETOOTH_MODE) {
                         if (buttons[i].pin == BTN_MENU) {
-                            stopBluetoothMode(); 
+                            stopBluetoothMode(); // Restart ke mode SD Card
                         }
                         else if (buttons[i].pin == BTN_PLAY) {
                             handleBluetoothPlayback();

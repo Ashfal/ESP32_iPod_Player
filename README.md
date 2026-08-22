@@ -1,29 +1,26 @@
 # 🎵 ESPod Audio Player
 
-Proyek pemutar musik dan bluetooth receiver portabel berbasis **ESP32** yang mengombinasikan antarmuka UI bergaya **iPod Classic** dan **animasi kaset pita retro** yang berputar secara dinamis. Proyek ini memanfaatkan **FreeRTOS (multithreading)** pada ESP32 untuk memisahkan pemrosesan decoding audio I2S, rendering grafik tampilan, dan penanganan tombol navigasi.
+Proyek pemutar musik dan bluetooth receiver portabel berbasis **ESP32** yang mengombinasikan antarmuka UI clean moderen. Proyek ini memanfaatkan **FreeRTOS (multithreading)** pada ESP32 untuk memisahkan pemrosesan decoding audio I2S, rendering grafik tampilan, dan penanganan tombol navigasi.
 
 ---
 
 <div style="display: flex; gap: 10px;">
-<img src="images/player.jpeg" width="300" height="400">
-<img src="images/playing.jpeg" width="300" height="400">
-<img src="images/list.jpeg" width="300" height="400">
+<img src="images/now_playing.jpeg" width="300" height="400">
 <img src="images/bt_mode.jpeg" width="300" height="400">
-<img src="images/circuit.jpeg" width="300" height="400">
+<img src="images/playlist1.jpeg" width="300" height="400">
+<img src="images/playlist.jpeg" width="300" height="400">
 </div>
 
 ---
 ## 📸 Fitur Utama
 
-- **Antarmuka UI iPod & Animasi Kaset Retro:**
-  - Header bergaya iPod dengan indikator status pemutaran dan persentase baterai.
-  - Tampilan visual kaset pita dengan animasi kerek pita (*spool*) yang berputar saat musik diputar.
-  - Ketebalan pita kaset menyesuaikan *progress* lagu secara real-time.
+- **Antarmuka UI moderen dan clean:**
+
 - **Arsitektur Multithreading FreeRTOS:**
   - `AudioTask` (Core 1): Menangani decoding I2S dan pembacaan file SD Card secara *real-time*.
   - `UITask` (Core 0): Merender tampilan visual pada Layar TFT tanpa *flicker* menggunakan *PSRAM Sprite*.
   - `InputTask` (Core 0): Menangani deteksi tombol, *debouncing*, *long press*, dan *fast scroll*.
-- **Format Audio yang Didukung:** `.mp3`, `.wav`, `.flac`.
+- **Format Audio yang Didukung:** `.mp3`, `.wav`, `.flac`, `.opus`, `.aac`.
 - **Mendukung Mode Bluetoth Reveiver:** `💡 BARU!!!`.
 - **Fitur Scrubber Mode:** Memudahkan untuk melompat (*fast forward* / *rewind*) durasi lagu sebesar ±5 atau ±10 detik.
 - **Penghemat Daya & Manajemen Baterai:**
@@ -122,6 +119,8 @@ Sistem bekerja dalam **3 Mode Tampilan (Player State)** yang mengubah fungsi mas
 | **BTN_MENU** | Tekan Singkat | Naik 1 tingkat ke folder di atasnya (*Directory Back*). |
 | | Tahan (*Long Press*) | Langsung kembali ke folder utama (*Root Directory `/`*). |
 | **BTN_PLAY** | Tekan Singkat | Jika sedang memutar lagu: pindah ke tampilan *Now Playing*. Jika tidak: memutar lagu terlayani. |
+| | Tahan (*Long Press*) | Memasuki mode DeepSleep dan tekan lagi untuk WakeUp |
+
 
 ---
 
@@ -137,6 +136,7 @@ Sistem bekerja dalam **3 Mode Tampilan (Player State)** yang mengubah fungsi mas
 | | Tahan (*Long Press*) | Memasuki mode DeepSleep dan tekan lagi untuk WakeUp |
 | **BTN_CENTER** | Tekan Singkat | Masuk ke **Scrubber Mode** (Mode geser durasi lagu). |
 | **BTN_MENU** | Tekan Singkat | Kembali ke Tampilan Menu / Daftar File (`STATE_MENU_VIEW`). |
+| | Tahan (*Long Press*) | Paksa restart |
 
 ---
 
@@ -161,7 +161,9 @@ Sistem bekerja dalam **3 Mode Tampilan (Player State)** yang mengubah fungsi mas
 | **BTN_DOWN** | Tekan Singkat | Volume Down. |
 | | Tahan (*Long Press*) | Prev Song. |
 | **BTN_PLAY** | Tekan Singkat | Play / Pause. |
+| | Tahan (*Long Press*) | Memasuki mode DeepSleep dan tekan lagi untuk WakeUp |
 | **BTN_Menu** | Tekan Singkat | Keluar dari Mode Bluetooth. |
+| | Tahan (*Long Press*) | Paksa restart |
 
 ---
 
@@ -174,13 +176,13 @@ Sistem bekerja dalam **3 Mode Tampilan (Player State)** yang mengubah fungsi mas
 
 Program ini membagi beban kerja ke dalam 3 Task FreeRTOS:
 
-1. **`AudioTask` (Core 1, Priority 2):**
+1. **`AudioTask` (Core 1, Priority 3):**
    - Menangani pembacaan MicroSD Card dan streaming audio I2S.
    - Melakukan eksekusi pemutaran lagu berikutnya (*auto play next*) secara aman menggunakan *mutex* saat lagu berakhir (Event `evt_eof`).
 2. **`UITask` (Core 0, Priority 1):**
    - Mengurus alokasi memory PSRAM Sprite (`TFT_eSprite`) ukuran 240x240.
-   - Merender indikator baterai, nama lagu, progress bar, dan animasi kaset yang berputar.
-3. **`InputTask` (Core 0, Priority 1):**
+   - Merender indikator baterai, nama lagu, progress bar.
+3. **`InputTask` (Core 0, Priority 2):**
    - Membaca state 5 tombol navigasi dengan interval `15 ms`.
    - Mengelola perhitungan waktu *long press*, *fast scroll*, serta penghematan daya backlight.
 

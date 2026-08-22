@@ -2,160 +2,328 @@
 
 TFT_eSPI tft = TFT_eSPI();
 TFT_eSprite sprUI = TFT_eSprite(&tft);
-float cassetteAngle = 0.0;
 
-void drawProgressBar(int percentage) {
-    int barX = 30;
-    int barY = 170;
-    int barW = 180;
-    int barH = 12;
+// ==========================================
+// LAYOUT CONSTANTS
+// ==========================================
+static const int HEADER_H     = 28;
+static const int CARD_X       = 20;
+static const int CARD_Y       = 34;
+static const int CARD_W       = 200;
+static const int CARD_H       = 106;
+static const int SCREEN_W     = 240;
 
-    sprUI.drawRoundRect(barX, barY, barW, barH, 4, TFT_WHITE);
-    
-    int fillW = map(percentage, 0, 100, 0, barW - 4);
-    fillW = constrain(fillW, 0, barW - 4);
+// ==========================================
+// SMALL, REUSABLE FLAT-UI PRIMITIVES
+// ==========================================
+
+static void drawFlatBar(int x, int y, int w, int h, int pct, uint16_t trackColor, uint16_t fillColor) {
+    pct = constrain(pct, 0, 100);
+    sprUI.fillRoundRect(x, y, w, h, h / 2, trackColor);
+    int fillW = map(pct, 0, 100, 0, w);
     if (fillW > 0) {
-        sprUI.fillRoundRect(barX + 2, barY + 2, fillW, barH - 4, 2, COLOR_IPOD_BLUE);
+        fillW = max(fillW, h); // keep the rounded cap visible even at low %
+        fillW = min(fillW, w);
+        sprUI.fillRoundRect(x, y, fillW, h, h / 2, fillColor);
     }
+}
+
+static void drawPlayGlyph(int cx, int cy, int r, bool playing, uint16_t color) {
+    sprUI.drawCircle(cx, cy, r, color);
+    sprUI.drawCircle(cx, cy, r - 1, color);
+    if (playing) {
+        sprUI.fillRoundRect(cx - 8, cy - 9, 5, 18, 2, color);
+        sprUI.fillRoundRect(cx + 3, cy - 9, 5, 18, 2, color);
+    } else {
+        sprUI.fillTriangle(cx - 6, cy - 10, cx - 6, cy + 10, cx + 10, cy, color);
+    }
+}
+
+static void drawEqualizerBars(int x, int y, int w, int h, bool active) {
+    static float level[5] = {0.35f, 0.55f, 0.42f, 0.6f, 0.38f};
+    static float phase = 0.0f;
+
+    int gap = 4;
+    int barW = (w - gap * 4) / 5;
+
+    for (int i = 0; i < 5; i++) {
+        float target = active ? (0.25f + 0.75f * fabsf(sinf(phase + i * 0.9f))) : 0.14f;
+        level[i] += (target - level[i]) * 0.35f;
+
+        int barH = (int)(h * level[i]);
+        barH = max(barH, 3);
+        int bx = x + i * (barW + gap);
+        int by = y + h - barH;
+        sprUI.fillRoundRect(bx, by, barW, barH, 2, COLOR_ACCENT);
+    }
+    phase += active ? 0.20f : 0.05f;
+}
+
+static void drawFolderIcon(int x, int y, uint16_t color) {
+    sprUI.fillRoundRect(x, y + 3, 7, 4, 1, color);
+    sprUI.fillRoundRect(x, y + 6, 16, 10, 2, color);
+}
+
+static void drawMusicIcon(int x, int y, uint16_t color) {
+    sprUI.fillCircle(x, y + 15, 3, color);
+    sprUI.fillCircle(x + 10, y + 13, 3, color);
+    sprUI.fillRect(x + 2, y, 2, 15, color);
+    sprUI.fillRect(x + 2, y, 10, 2, color);
+    sprUI.fillRect(x + 10, y - 2, 2, 15, color);
+}
+
+static void drawBTGlyph(int cx, int cy, int s, uint16_t color) {
+    int top = cy - s;
+    int bot = cy + s;
+    sprUI.drawLine(cx, top, cx, bot, color);
+    sprUI.drawLine(cx, top, cx + s, top + s / 2, color);
+    sprUI.drawLine(cx + s, top + s / 2, cx - s, bot - s / 2, color);
+    sprUI.drawLine(cx, bot, cx + s, bot - s / 2, color);
+    sprUI.drawLine(cx + s, bot - s / 2, cx - s, top + s / 2, color);
+}
+
+static void drawBatteryIcon(int x, int y) {
+    const int w = 24, h = 12;
+    sprUI.drawRoundRect(x, y, w, h, 2, COLOR_TEXT_MUTED);
+    sprUI.fillRoundRect(x + w, y + 3, 2, h - 6, 1, COLOR_TEXT_MUTED);
+
+    int fillW = map(batteryPercent, 0, 100, 0, w - 4);
+    fillW = constrain(fillW, 0, w - 4);
+    uint16_t batColor = (batteryPercent <= 20) ? COLOR_WARN : COLOR_GOOD;
+    if (fillW > 0) sprUI.fillRoundRect(x + 2, y + 2, fillW, h - 4, 1, batColor);
+}
+
+static String truncate(String s, int maxLen) {
+    if (s.length() > (unsigned)maxLen) return s.substring(0, maxLen - 2) + "..";
+    return s;
+}
+
+// ==========================================
+// HEADER (shared across every screen)
+// ==========================================
+void drawHeader(String title) {
+    sprUI.setTextDatum(TL_DATUM);
+    sprUI.setTextColor(COLOR_TEXT, COLOR_BG);
+    sprUI.drawString(truncate(title, 14), 14, 7, 2);
+
+    // playback status dot
+    uint16_t dotColor = isPlaying ? COLOR_ACCENT : COLOR_TEXT_MUTED;
+    sprUI.fillCircle(180, 13, 4, dotColor);
+
+    drawBatteryIcon(196, 8);
+
+    sprUI.drawFastHLine(0, HEADER_H - 1, SCREEN_W, COLOR_DIVIDER);
+}
+
+// ==========================================
+// SPLASH SCREEN
+// ==========================================
+void drawProgressBar(int percentage) {
+    drawFlatBar(40, 165, 160, 6, percentage, COLOR_DIVIDER, COLOR_ACCENT);
 }
 
 void showSplashScreen() {
     uint32_t bootStartTime = millis();
-    uint32_t bootDuration  = 2500; 
+    uint32_t bootDuration  = 2000;
 
     while (millis() - bootStartTime < bootDuration) {
-
         int progress = map(millis() - bootStartTime, 0, bootDuration, 0, 100);
         progress = constrain(progress, 0, 100);
 
-        sprUI.fillSprite(COLOR_IPOD_BG);
+        sprUI.fillSprite(COLOR_BG);
 
-        sprUI.setTextColor(COLOR_IPOD_BLUE, COLOR_IPOD_BG);
         sprUI.setTextDatum(MC_DATUM);
-        sprUI.drawString("ESPod Player", 120, 100, 4); 
+        sprUI.setTextColor(COLOR_TEXT, COLOR_BG);
+        sprUI.drawString("ESPod Audio", 120, 100, 4);
 
-        sprUI.setTextColor(COLOR_IPOD_DARK, COLOR_IPOD_BG);
-        sprUI.drawString("System Starting...", 120, 135, 2);
+        sprUI.setTextColor(COLOR_TEXT_MUTED, COLOR_BG);
+        sprUI.drawString("Starting up", 120, 132, 2);
 
         drawProgressBar(progress);
 
-        sprUI.pushSprite(0, 0);
+        sprUI.setTextColor(COLOR_TEXT, COLOR_BG);
+        sprUI.setTextDatum(BC_DATUM);
+        sprUI.drawString("Created by @ashfal_f", 120, 220, 2);
 
+        sprUI.pushSprite(0, 0);
         sprUI.setTextDatum(TL_DATUM);
 
         vTaskDelay(33 / portTICK_PERIOD_MS);
     }
-    vTaskDelay(500 / portTICK_PERIOD_MS);
+    vTaskDelay(300 / portTICK_PERIOD_MS);
 }
 
-void drawCassetteSpool(int cx, int cy, float angle, int tapeRadius) {
-    if (tapeRadius > 10) {
-        sprUI.fillCircle(cx, cy, tapeRadius, COLOR_TAPE_BROWN);
+// ==========================================
+// MENU / FILE BROWSER
+// ==========================================
+static void renderMenu() {
+    if (!isSdAvailable) {
+        sprUI.setTextDatum(MC_DATUM);
+        sprUI.setTextColor(COLOR_ACCENT, COLOR_BG);
+        sprUI.drawString("NO SD CARD", 120, 100, 4);
+        
+        sprUI.setTextColor(COLOR_TEXT_MUTED, COLOR_BG);
+        sprUI.drawString("Press CENTER for Bluetooth", 120, 140, 2);
+    } 
+    else {
+         String header = "Library";
+        if (currentPath != "/") {
+            int lastSlash = currentPath.lastIndexOf('/');
+            header = currentPath.substring(lastSlash + 1);
+        }
+        drawHeader(header);
+
+        if (xSemaphoreTake(dataMutex, (TickType_t)5) == pdTRUE) {
+            const int top = HEADER_H + 6;
+            const int rowH = 32;
+            const int rowGap = 4;
+            const int visibleCount = (SCREEN_W - top) / rowH;
+
+            int startIdx = max(0, selectedIndex - visibleCount / 2);
+            int endIdx = min((int)fileList.size(), startIdx + visibleCount);
+            startIdx = max(0, min(startIdx, endIdx - visibleCount));
+            startIdx = max(0, startIdx);
+
+            int y = top;
+            for (int i = startIdx; i < endIdx; i++) {
+                bool isSel = (i == selectedIndex);
+                uint16_t rowBg = isSel ? COLOR_SURFACE : COLOR_BG;
+                uint16_t fg = isSel ? COLOR_TEXT : COLOR_TEXT_MUTED;
+                uint16_t iconColor = isSel ? COLOR_ACCENT : COLOR_TEXT_MUTED;
+
+                if (isSel) {
+                    sprUI.fillRoundRect(10, y, 220, rowH - rowGap, 10, COLOR_SURFACE);
+                    sprUI.fillRoundRect(10, y, 4, rowH - rowGap, 2, COLOR_ACCENT);
+                }
+
+                if (fileList[i].isDir) drawFolderIcon(26, y + 8, iconColor);
+                else drawMusicIcon(26, y + 6, iconColor);
+
+                sprUI.setTextColor(fg, rowBg);
+                sprUI.setTextDatum(TL_DATUM);
+                sprUI.drawString(truncate(fileList[i].name, 24), 48, y + 9, 2);
+
+                if (fileList[i].isDir) {
+                    int cx = 216, cy = y + (rowH - rowGap) / 2;
+                    sprUI.drawLine(cx, cy - 5, cx + 5, cy, iconColor);
+                    sprUI.drawLine(cx + 5, cy, cx, cy + 5, iconColor);
+                }
+
+                y += rowH;
+            }
+
+            if (fileList.empty()) {
+                sprUI.setTextDatum(MC_DATUM);
+                sprUI.setTextColor(COLOR_TEXT_MUTED, COLOR_BG);
+                sprUI.drawString("No tracks found, Entering Bluetooth Mode", 120, 130, 2);
+                sprUI.setTextDatum(TL_DATUM);
+            }
+
+            xSemaphoreGive(dataMutex);
+        }
     }
-
-    sprUI.fillCircle(cx, cy, 10, TFT_WHITE);
-    sprUI.drawCircle(cx, cy, 10, TFT_BLACK);
-
-    for (int i = 0; i < 6; i++) {
-        float rad = angle + (i * 60.0 * DEG_TO_RAD);
-        int x1 = cx + cos(rad) * 4;
-        int y1 = cy + sin(rad) * 4;
-        int x2 = cx + cos(rad) * 9;
-        int y2 = cy + sin(rad) * 9;
-        sprUI.drawLine(x1, y1, x2, y2, TFT_BLACK);
-    }
-
-    sprUI.fillCircle(cx, cy, 4, COLOR_CASSETTE_WIN);
-}
-
-void drawCassetteAnimation(int x, int y, int w, int h) {
-    sprUI.fillRoundRect(x, y, w, h, 6, COLOR_CASSETTE_BODY);
-    sprUI.drawRoundRect(x, y, w, h, 6, TFT_BLACK);
-
-    sprUI.fillRect(x + 5, y + 5, w - 10, 28, COLOR_CASSETTE_LABEL);
-    sprUI.setTextColor(TFT_BLACK, COLOR_CASSETTE_LABEL);
-
-    String title = String(localTrackTitle);
-    if (title.length() > 25) title = title.substring(0, 20) + "..";
-    String artist = String(localTrackArtist);
-    if (artist.length() > 25) title = artist.substring(0, 20) + "..";
     
-    sprUI.drawString(title, x + 10, y + 8, 1);
-    sprUI.drawString("C-90", x + w - 35, y + 8, 1);
-    sprUI.drawString(artist, x + 10, y + 20, 1);
-
-    int winX = x + 15;
-    int winY = y + 38;
-    int winW = w - 30;
-    int winH = h - 48;
-    sprUI.fillRect(winX, winY, winW, winH, COLOR_CASSETTE_WIN);
-    sprUI.drawRect(winX, winY, winW, winH, TFT_SILVER);
-
-    int leftTapeRadius = 18;
-    int rightTapeRadius = 11;
-
-    if (audioTotalTime > 0) {
-        int progressPercent = map(audioCurrentTime, 0, audioTotalTime, 0, 100);
-        leftTapeRadius  = map(progressPercent, 0, 100, 18, 11);
-        rightTapeRadius = map(progressPercent, 0, 100, 11, 18);
-    }
-
-    if (isPlaying) {
-        cassetteAngle -= 0.25;
-        if (cassetteAngle >= TWO_PI) cassetteAngle = 0;
-    }
-
-    int leftSpoolX  = winX + 25;
-    int rightSpoolX = winX + winW - 25;
-    int spoolY      = winY + (winH / 2);
-
-    sprUI.drawFastHLine(leftSpoolX, spoolY + 14, rightSpoolX - leftSpoolX, COLOR_TAPE_BROWN);
-
-    drawCassetteSpool(leftSpoolX, spoolY, cassetteAngle, leftTapeRadius);
-    drawCassetteSpool(rightSpoolX, spoolY, cassetteAngle, rightTapeRadius);
-
-    sprUI.fillTriangle(x + 25, y + h, x + 35, y + h - 10, x + w - 35, y + h - 10, COLOR_CASSETTE_BODY);
-    sprUI.fillTriangle(x + 25, y + h, x + w - 35, y + h - 10, x + w - 25, y + h, COLOR_CASSETTE_BODY);
-    sprUI.drawRect(x + 35, y + h - 10, w - 70, 10, TFT_BLACK);
+   
 }
 
+// ==========================================
+// NOW PLAYING / SCRUBBER
+// ==========================================
+static void renderNowPlaying(bool scrubMode) {
+    drawHeader(scrubMode ? "Seeking" : "Now Playing");
 
-void drawIpodHeader(String title) {
-    sprUI.fillRect(0, 0, 240, 28, COLOR_IPOD_BLUE);
-    sprUI.drawFastHLine(0, 27, 240, TFT_NAVY);
-    
-    sprUI.setTextColor(TFT_WHITE, COLOR_IPOD_BLUE);
-    sprUI.drawString(title, 8, 6, 2);
+    uint16_t accent = scrubMode ? COLOR_ACCENT_ALT : COLOR_ACCENT;
 
-    if (isPlaying) {
-        sprUI.fillTriangle(175, 8, 175, 20, 183, 14, TFT_WHITE);
+    sprUI.fillRoundRect(CARD_X, CARD_Y, CARD_W, CARD_H, 14, COLOR_SURFACE);
+    if (scrubMode) sprUI.drawRoundRect(CARD_X, CARD_Y, CARD_W, CARD_H, 14, COLOR_ACCENT_ALT);
+
+    drawPlayGlyph(120, CARD_Y + 38, 24, isPlaying, accent);
+    drawEqualizerBars(70, CARD_Y + 72, 100, 24, isPlaying);
+
+    sprUI.setTextDatum(MC_DATUM);
+    sprUI.setTextColor(COLOR_TEXT, COLOR_BG);
+    sprUI.drawString(truncate(String(localTrackTitle), 20), 120, 156, 2);
+
+    sprUI.setTextColor(COLOR_TEXT_MUTED, COLOR_BG);
+    sprUI.drawString(truncate(String(localTrackArtist), 30), 120, 178, 1);
+    sprUI.setTextDatum(TL_DATUM);
+
+    uint32_t cTime = audioCurrentTime;
+    uint32_t tTime = audioTotalTime;
+    int pct = (tTime > 0) ? map(cTime, 0, tTime, 0, 100) : 0;
+
+    drawFlatBar(15, 194, 210, 6, pct, COLOR_DIVIDER, accent);
+
+    char timeCurr[8], timeTot[8];
+    snprintf(timeCurr, sizeof(timeCurr), "%02lu:%02lu", cTime / 60, cTime % 60);
+    snprintf(timeTot, sizeof(timeTot), "%02lu:%02lu", tTime / 60, tTime % 60);
+
+    sprUI.setTextColor(COLOR_TEXT_MUTED, COLOR_BG);
+    sprUI.drawString(timeCurr, 15, 204, 1);
+    sprUI.setTextDatum(TR_DATUM);
+    sprUI.drawString(timeTot, 225, 204, 1);
+    sprUI.setTextDatum(TL_DATUM);
+
+    sprUI.drawFastHLine(15, 216, 210, COLOR_DIVIDER);
+
+    sprUI.setTextColor(COLOR_TEXT_MUTED, COLOR_BG);
+    sprUI.drawString("VOL", 15, 222, 1);
+    int volPct = map(currentVolume, 0, MAX_VOLUME, 0, 100);
+    drawFlatBar(45, 221, 165, 6, volPct, COLOR_DIVIDER, COLOR_ACCENT);
+}
+
+// ==========================================
+// BLUETOOTH MODE
+// ==========================================
+static void renderBluetooth() {
+    drawHeader("ESPod Audio");
+
+    sprUI.fillRoundRect(CARD_X, CARD_Y, CARD_W, CARD_H, 14, COLOR_SURFACE);
+
+    sprUI.setTextDatum(MC_DATUM);
+
+    if (isBtConnected) {
+        drawBTGlyph(36, CARD_Y + 18, 7, COLOR_ACCENT);
+        sprUI.fillCircle(50, CARD_Y + 12, 3, COLOR_GOOD);
+
+        sprUI.setTextColor(COLOR_TEXT, COLOR_SURFACE);
+        sprUI.drawString(truncate(String(btTrackTitle), 20), 120, CARD_Y + 22, 2);
+
+        sprUI.setTextColor(COLOR_TEXT_MUTED, COLOR_SURFACE);
+        sprUI.drawString(truncate(String(btTrackArtist), 26), 120, CARD_Y + 40, 1);
+
+        drawEqualizerBars(70, CARD_Y + 62, 100, 30, isBtPlaying);
     } else {
-        sprUI.fillRect(175, 8, 3, 12, TFT_WHITE);
-        sprUI.fillRect(181, 8, 3, 12, TFT_WHITE);
+        drawBTGlyph(120, CARD_Y + 32, 16, COLOR_TEXT_MUTED);
+        sprUI.setTextColor(COLOR_TEXT, COLOR_SURFACE);
+        sprUI.drawString("Waiting for device", 120, CARD_Y + 66, 2);
+        sprUI.setTextColor(COLOR_TEXT_MUTED, COLOR_SURFACE);
+        sprUI.drawString("ESPod_Audio", 120, CARD_Y + 86, 1);
     }
 
-    int batX = 195;
-    int batY = 8;
-    int batW = 28;
-    int batH = 13;
+    uint32_t curSec = btPlayPosMs / 1000;
+    char timeStr[8];
+    snprintf(timeStr, sizeof(timeStr), "%02lu:%02lu", curSec / 60, curSec % 60);
 
-    sprUI.drawRect(batX, batY, batW, batH, TFT_WHITE);
-    sprUI.fillRect(batX + batW, batY + 3, 2, 7, TFT_WHITE); 
+    sprUI.setTextColor(COLOR_TEXT, COLOR_BG);
+    sprUI.drawString(timeStr, 120, 168, 4);
 
-    int fillW = map(batteryPercent, 0, 100, 0, batW - 4);
-    fillW = constrain(fillW, 0, batW - 4);
+    sprUI.setTextColor(COLOR_TEXT_MUTED, COLOR_BG);
+    sprUI.drawString(isBtConnected ? "Streaming from phone" : "Not connected", 120, 190, 1);
+    sprUI.setTextDatum(TL_DATUM);
 
-    uint16_t batColor = (batteryPercent <= 20) ? TFT_RED : TFT_GREEN;
-    
-    if (fillW > 0) {
-        sprUI.fillRect(batX + 2, batY + 2, fillW, batH - 4, batColor);
-    }
+    sprUI.drawFastHLine(15, 204, 210, COLOR_DIVIDER);
+    sprUI.setTextColor(COLOR_TEXT_MUTED, COLOR_BG);
+    sprUI.drawString("VOL", 15, 212, 1);
+    int volPct = map(currentVolume, 0, MAX_VOLUME, 0, 100);
+    drawFlatBar(45, 211, 165, 6, volPct, COLOR_DIVIDER, COLOR_ACCENT);
 }
 
+// ==========================================
+// DISPLAY POWER
+// ==========================================
 void setDisplayPower(bool turnOn) {
-
     if (xSemaphoreTake(dataMutex, portMAX_DELAY) == pdTRUE) {
-
         if (turnOn) {
             tft.writecommand(ST7789_SLPOUT);
             tft.writecommand(ST7789_DISPON);
@@ -171,12 +339,9 @@ void setDisplayPower(bool turnOn) {
     }
 }
 
-uint8_t readBatteryPercentage() {
-
+static uint8_t readBatteryPercentage() {
     uint32_t rawADC = analogRead(PIN_BATTERY);
-    
     float pinVoltage = (rawADC / 4095.0) * 3.3;
-    
     float batteryVoltage = pinVoltage * ((R1_VALUE + R2_VALUE) / R2_VALUE);
 
     if (batteryVoltage >= 4.2) return 100;
@@ -186,178 +351,13 @@ uint8_t readBatteryPercentage() {
     return constrain(percent, 0, 100);
 }
 
-void renderMenu(){
-     if (!isSdAvailable) {
-        sprUI.setTextDatum(MC_DATUM);
-        sprUI.setTextColor(TFT_BLACK, COLOR_IPOD_BG);
-        sprUI.drawString("NO SD CARD", 120, 100, 4);
-        
-        sprUI.setTextColor(COLOR_IPOD_DARK, COLOR_IPOD_BG);
-        sprUI.drawString("Press CENTER for Bluetooth", 120, 140, 2);
-    } 
-    else {
-        drawIpodHeader(currentPath == "/" ? "ESPod" : currentPath);
-
-        if (xSemaphoreTake(dataMutex, (TickType_t)5) == pdTRUE) {
-            int yOffset = 32;
-            int visibleCount = 7;
-            int startIdx = max(0, selectedIndex - 3);
-            int endIdx = min((int)fileList.size(), startIdx + visibleCount);
-
-            for (int i = startIdx; i < endIdx; i++) {
-                bool isSel = (i == selectedIndex);
-
-                if (isSel) {
-                    sprUI.fillRect(0, yOffset - 2, 240, 26, COLOR_IPOD_SEL);
-                    sprUI.setTextColor(TFT_WHITE, COLOR_IPOD_SEL);
-                } else {
-                    sprUI.setTextColor(TFT_BLACK, COLOR_IPOD_BG);
-                }
-
-                String displayName = fileList[i].name;
-                if (displayName.length() > 28) displayName = displayName.substring(0, 26) + "..";
-                
-                sprUI.drawString(displayName, 10, yOffset + 2, 2);
-
-                if (fileList[i].isDir) {
-                    sprUI.drawString(">", 225, yOffset + 2, 2);
-                }
-
-                if (!isSel) {
-                    sprUI.drawFastHLine(10, yOffset + 23, 230, 0xE71C);
-                }
-
-                yOffset += 26;
-            }
-            xSemaphoreGive(dataMutex);
-        }
-    }
-}
-
-void renderNowPlaying(){
-    drawIpodHeader(currentState == STATE_SCRUBBER_MODE ? "Scrubber Mode" : "Now Playing");
-
-    drawCassetteAnimation(20, 50, 200, 95);
-
-    uint16_t barColor = (currentState == STATE_SCRUBBER_MODE) ? COLOR_SCRUBBER : COLOR_IPOD_BLUE;
-    sprUI.drawRoundRect(12, 160, 216, 12, 3, COLOR_IPOD_BAR);
-    
-    uint32_t cTime = audioCurrentTime;
-    uint32_t tTime = audioTotalTime;
-
-    if (tTime > 0) {
-        int barWidth = map(cTime, 0, tTime, 0, 210);
-        sprUI.fillRoundRect(15, 162, constrain(barWidth, 0, 210), 8, 2, barColor);
-    }
-
-    char timeCurr[10], timeTot[10];
-    snprintf(timeCurr, sizeof(timeCurr), "%02d:%02d", cTime / 60, cTime % 60);
-    snprintf(timeTot, sizeof(timeTot), "-%02d:%02d", (tTime > cTime ? (tTime - cTime) / 60 : 0), (tTime > cTime ? (tTime - cTime) % 60 : 0));
-
-    sprUI.setTextColor(COLOR_IPOD_DARK, COLOR_IPOD_BG);
-    sprUI.drawString(timeCurr, 12, 177, 1);
-    sprUI.drawString(timeTot, 195, 177, 1);
-
-    sprUI.drawFastHLine(12, 198, 216, 0xE71C);
-    sprUI.drawString("Vol:", 12, 207, 1);
-    
-    int volWidth = map(currentVolume, 0, 21, 0, 160);
-    sprUI.fillRect(45, 209, 160, 6, 0xE71C);
-    sprUI.fillRect(45, 209, volWidth, 6, COLOR_IPOD_SEL);
-}
-
-void renderBluetooth(){
-    drawIpodHeader("ESPod BT");
-
-    static float btCassetteAngle = 0.0;
-    if (isBtPlaying) {
-        btCassetteAngle += 5.0;
-        if (btCassetteAngle >= 360.0) btCassetteAngle -= 360.0;
-    }
-
-    int cassX = 20;
-    int cassY = 60;
-    int cassW = 200;
-    int cassH = 110;
-
-    sprUI.fillRoundRect(cassX, cassY, cassW, cassH, 6, COLOR_CASSETTE_BODY);
-    sprUI.drawRoundRect(cassX, cassY, cassW, cassH, 6, COLOR_IPOD_DARK);
-
-    int labelX = cassX + 10;
-    int labelY = cassY + 8;
-    int labelW = cassW - 20;
-    int labelH = 34;
-
-    sprUI.fillRect(labelX, labelY, labelW, labelH, COLOR_CASSETTE_LABEL);
-    sprUI.drawRect(labelX, labelY, labelW, labelH, COLOR_IPOD_DARK);
-
-    sprUI.setTextDatum(MC_DATUM);
-
-    if (isBtConnected) {
-
-        String titleStr = String(btTrackTitle);
-        if (titleStr.length() > 18) {
-            titleStr = titleStr.substring(0, 16) + "..";
-        }
-
-        String artistStr = String(btTrackArtist);
-        if (artistStr.length() > 22) {
-            artistStr = artistStr.substring(0, 20) + "..";
-        }
-
-        sprUI.setTextColor(COLOR_IPOD_DARK, COLOR_CASSETTE_LABEL);
-        sprUI.drawString(titleStr, 120, labelY + 10, 2);
-
-        sprUI.setTextColor(COLOR_IPOD_DARK, COLOR_CASSETTE_LABEL);
-        sprUI.drawString(artistStr, 120, labelY + 24, 1);
-    } else {
-
-        sprUI.setTextColor(COLOR_IPOD_DARK, COLOR_CASSETTE_LABEL);
-        sprUI.drawString("PAIRING...", 120, labelY + 12, 2);
-        sprUI.setTextColor(COLOR_IPOD_DARK, COLOR_CASSETTE_LABEL);
-        sprUI.drawString("ESPod_Audio", 120, labelY + 25, 1);
-    }
-
-    int winX = cassX + 25;
-    int winY = cassY + 48;
-    int winW = cassW - 50;
-    int winH = 48;
-
-    sprUI.fillRect(winX, winY, winW, winH, COLOR_CASSETTE_WIN);
-    sprUI.drawRect(winX, winY, winW, winH, COLOR_IPOD_DARK);
-
-    int leftTapeRadius  = 16;
-    int rightTapeRadius = 16;
-
-    int leftSpoolX = winX + 32;
-    int rightSpoolX = winX + winW - 32;
-    int spoolY = winY + (winH / 2);
-
-    drawCassetteSpool(leftSpoolX, spoolY, btCassetteAngle, leftTapeRadius);
-    drawCassetteSpool(rightSpoolX, spoolY, btCassetteAngle, rightTapeRadius);
-
-    uint32_t curSec = btPlayPosMs / 1000;
-    char timeStr[32];
-    
-    snprintf(timeStr, sizeof(timeStr), "%02d:%02d", curSec / 60, curSec % 60);
-
-    sprUI.setTextColor(TFT_WHITE,COLOR_CASSETTE_WIN );
-    sprUI.drawString(timeStr, 120, spoolY, 2);
-
-    sprUI.drawFastHLine(12, 198, 216, 0xE71C);
-    
-    int volWidth = map(currentVolume, 0, 21, 0, 160);
-    sprUI.fillRect(45, 209, 160, 6, 0xE71C);
-    sprUI.fillRect(45, 209, volWidth, 6, COLOR_IPOD_SEL);
-    
-    sprUI.setTextDatum(TL_DATUM);
-    sprUI.setTextColor(COLOR_IPOD_DARK, COLOR_IPOD_BG);
-    sprUI.drawString("Vol:", 12, 207, 1);
-}
+// ==========================================
+// MAIN UI TASK
+// ==========================================
 void UITask(void *pvParameters) {
     tft.init();
     tft.setRotation(2);
-    tft.fillScreen(COLOR_IPOD_BG);
+    tft.fillScreen(COLOR_BG);
 
     gpio_hold_dis(GPIO_NUM_27);
     gpio_deep_sleep_hold_dis();
@@ -369,31 +369,29 @@ void UITask(void *pvParameters) {
     showSplashScreen();
 
     uint32_t lastUpdate = 0;
-
-    pinMode(PIN_BATTERY,INPUT);
-
     static unsigned long lastBatCheck = 0;
 
-    for (;;) {
+    pinMode(PIN_BATTERY, INPUT);
 
-        if (millis() - lastBatCheck > 5000) { // Cek tiap 5 detik
+    for (;;) {
+        if (millis() - lastBatCheck > 5000) {
             batteryPercent = readBatteryPercentage();
             lastBatCheck = millis();
         }
 
         if (millis() - lastUpdate > 40) {
             lastUpdate = millis();
-            sprUI.fillSprite(COLOR_IPOD_BG);
+            sprUI.fillSprite(COLOR_BG);
 
             switch (currentState) {
                 case STATE_MENU_VIEW:
                     renderMenu();
                     break;
                 case STATE_NOW_PLAYING:
-                    renderNowPlaying();
+                    renderNowPlaying(false);
                     break;
                 case STATE_SCRUBBER_MODE:
-                    renderNowPlaying();
+                    renderNowPlaying(true);
                     break;
                 case STATE_BLUETOOTH_MODE:
                     renderBluetooth();
